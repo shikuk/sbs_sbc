@@ -13,53 +13,69 @@ void BQ20Z45::write(uint8_t address, uint8_t data)
   Wire.endTransmission();
 }
 
+void BQ20Z45::write16(uint8_t address, uint16_t data)
+{
+  Wire.beginTransmission(BQ20Z45_Address);
+  Wire.write(address);
+  Wire.write(data & 0xFF);
+  Wire.write(data>>8 & 0xFF);
+  Wire.endTransmission();
+}
+
 uint8_t BQ20Z45::read(uint8_t address)
 {
-	uint8_t registerValue;
+  uint8_t registerValue;
       Wire.beginTransmission(BQ20Z45_Address);
-	Wire.write(address);
-	Wire.endTransmission();
-	Wire.requestFrom(BQ20Z45_Address,1,true);
-	registerValue = Wire.read();
-	Wire.endTransmission();
+  Wire.write(address);
+  Wire.endTransmission();
+  Wire.requestFrom(BQ20Z45_Address,1,1);
+  registerValue = Wire.read();
+  Wire.endTransmission();
         return registerValue;
 }
 
 uint16_t BQ20Z45::read16u(uint8_t address)
 {
-	uint16_t registerValue;
+  uint16_t registerValue;
       Wire.beginTransmission(BQ20Z45_Address);
-	Wire.write(address);
-	Wire.endTransmission(false);
-	Wire.requestFrom(BQ20Z45_Address,2,true);
-	registerValue = Wire.read();
+  Wire.write(address);
+  Wire.endTransmission(false);
+  Wire.requestFrom(BQ20Z45_Address,2,1);
+  registerValue = Wire.read();
      registerValue |= (Wire.read()<<8);
-	
+  
         return registerValue;
+}
+
+uint16_t BQ20Z45::read16uManuf(uint16_t reg) {
+  // ask for function #reg
+      write16 (BQ20Z45_ManAccess, reg);
+  // Read manufacturer result word
+  return read16u(BQ20Z45_ManAccess);
 }
 
 uint16_t BQ20Z45::read16u2(uint8_t address)
 {
-	uint16_t registerValue;
+  uint16_t registerValue;
       Wire.beginTransmission(BQ20Z45_Address);
-	Wire.write(address);
-	Wire.endTransmission(false);
-	Wire.requestFrom(BQ20Z45_Address,4,true);
-	Wire.read();
+  Wire.write(address);
+  Wire.endTransmission(false);
+  Wire.requestFrom(BQ20Z45_Address,4,1);
+  Wire.read();
         registerValue = Wire.read();
         registerValue |= (Wire.read()<<8);;
-	
+  
         return registerValue;
 }
 
 int16_t BQ20Z45::read16(uint8_t address)
 {
-	int16_t registerValue;
+  int16_t registerValue;
         Wire.beginTransmission(BQ20Z45_Address);
-	Wire.write(address);
-	Wire.endTransmission(false);
-	Wire.requestFrom(BQ20Z45_Address,2,true);
-	registerValue = Wire.read();
+  Wire.write(address);
+  Wire.endTransmission(false);
+  Wire.requestFrom(BQ20Z45_Address,2,1);
+  registerValue = Wire.read();
         registerValue += (Wire.read()*256);
 
         return registerValue;
@@ -67,17 +83,17 @@ int16_t BQ20Z45::read16(uint8_t address)
 
 uint32_t BQ20Z45::read32u(uint8_t address)
 {
-	uint32_t registerValue;
+  uint32_t registerValue;
       Wire.beginTransmission(BQ20Z45_Address);
-	Wire.write(address);
-	Wire.endTransmission(false);
-	Wire.requestFrom(BQ20Z45_Address,5,true);
-	    Wire.read();
+  Wire.write(address);
+  Wire.endTransmission(false);
+  Wire.requestFrom(BQ20Z45_Address,5,1);
+      Wire.read();
         registerValue = Wire.read();
         registerValue |= (Wire.read()<<8);
         registerValue |= ((uint32_t)Wire.read() << 16);
         registerValue |= ((uint32_t)Wire.read() << 24);
-		
+    
         return registerValue;
 }
 
@@ -85,48 +101,50 @@ uint8_t BQ20Z45::Check_Reg(uint8_t address, uint8_t reg)
 {
    Wire.beginTransmission(address);
   Wire.write(reg);
-  if (Wire.endTransmission()==0){
-  Wire.requestFrom(address, 1, 1);
+  if (Wire.endTransmission())
+  return 0;
+  else {
+  Wire.requestFrom(address,1,1);
   Wire.read();
   Wire.endTransmission();
   return 1;
   }
-        else return 0;
+  
 }
 
 // pass a pointer to a char[] that can take up to 33 chars
 // will return the length of the string received
-int BQ20Z45::readString(uint8_t address, char* result)
+uint8_t BQ20Z45::readString(uint8_t address, uint8_t* result)
 {
-	int pos = 0;
-	int len;
+  uint8_t pos = 0;
+  uint8_t len;
 
         // Read the length of the string
-	Wire.beginTransmission(BQ20Z45_Address);
-	Wire.write(address);
-	Wire.endTransmission(false);
-	Wire.requestFrom(BQ20Z45_Address, 1, true);
-	len = Wire.read();    // length of the string
+  Wire.beginTransmission(BQ20Z45_Address);
+  Wire.write(address);
+  Wire.endTransmission(false);
+  Wire.requestFrom(BQ20Z45_Address, 1, 1);
+  len = Wire.read();    // length of the string
         len++;            // plus one to allow for the length byte on the reread
                           // if len > 32 then the it will be truncated to 32 by requestFrom
 
         // Now that we know the length, repeat the read to get all the string data. 
         // we need to write the address again and do a restart so its a valid SMBus transaction
-	Wire.beginTransmission(BQ20Z45_Address);
-	Wire.write(address);
-	Wire.endTransmission(false);
-	len = Wire.requestFrom(BQ20Z45_Address, len, true);    // readRequest returns # bytes actually read
+  Wire.beginTransmission(BQ20Z45_Address);
+  Wire.write(address);
+  Wire.endTransmission(false);
+  len = Wire.requestFrom(BQ20Z45_Address, len, 1);    // readRequest returns # bytes actually read
 
         len--;                                             // we won't move the first byte as its not part of the string
-	if (len > 0)
-	{
+  if (len > 0)
+  {
                 Wire.read();
-		for (pos = 0; pos < len; pos++)
-			result[pos] = Wire.read();
-	}
-	result[pos] = '\0';  // append the zero terminator
-	
-	return len;
+    for (pos = 0; pos < len; pos++)
+      result[pos] = Wire.read();
+  }
+  result[pos] = '\0';  // append the zero terminator
+  
+  return len;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -135,161 +153,189 @@ int BQ20Z45::readString(uint8_t address, char* result)
 
 uint16_t BQ20Z45::GetTemp()
 {
-	return read16u(BQ20Z45_Temp);
+  return read16u(BQ20Z45_Temp);
 }
 
 uint16_t BQ20Z45::GetVoltage()
 {
-	return read16u(BQ20Z45_Volt);
+  return read16u(BQ20Z45_Volt);
 }
 
 int16_t BQ20Z45::GetCurrent()
 {
-	return read16(BQ20Z45_Current);
+  return read16(BQ20Z45_Current);
 }
 int16_t BQ20Z45::AverageCurrent()
 {
-	return read16(BQ20Z45_AveCurrent);
+  return read16(BQ20Z45_AveCurrent);
 }
 uint8_t BQ20Z45::RelativeSOC()
 {
-	return read(BQ20Z45_RelativeSOC);
+  return read(BQ20Z45_RelativeSOC);
 }
 uint8_t BQ20Z45::AbsoluteSOC()
 {
-	return read(BQ20Z45_AbsoluteSOC);
+  return read(BQ20Z45_AbsoluteSOC);
 }
 uint16_t BQ20Z45::RemainingCapAlarm()
 {
-	return read16u(BQ20Z45_RemainCapAlarm);
+  return read16u(BQ20Z45_RemainCapAlarm);
 }
 uint16_t BQ20Z45::RemainingTimeAlarm()
 {
-	return read16u(BQ20Z45_RemainTimeAlarm);
+  return read16u(BQ20Z45_RemainTimeAlarm);
 }
-uint16_t BQ20Z45::AtRate()
+int16_t BQ20Z45::AtRate()
 {
-	return read16(BQ20Z45_AtRate);
+  return read16(BQ20Z45_AtRate);
 }
 uint8_t BQ20Z45::MaxError()
 {
-	return read(BQ20Z45_MaxError);
+  return read(BQ20Z45_MaxError);
 }
 uint16_t BQ20Z45::AtRateTimeToFull()
 {
-	return read16u(BQ20Z45_AtRateTimeToFull);
+  return read16u(BQ20Z45_AtRateTimeToFull);
 }
 uint16_t BQ20Z45::AtRateTimeToEmpty()
 {
-	return read16u(BQ20Z45_AtRateTimeToEmpty);
+  return read16u(BQ20Z45_AtRateTimeToEmpty);
 }
 uint16_t BQ20Z45::AtRateOK()
 {
- 	return read16u(BQ20Z45_AtRateOK);
+  return read16u(BQ20Z45_AtRateOK);
 }
 uint16_t BQ20Z45::RemainingBatteryCapacity()
 {
-	return read16u(BQ20Z45_RemCap );
+  return read16u(BQ20Z45_RemCap );
 }
 uint16_t BQ20Z45::FullBatteryCapacity()
 {
-	return read16u(BQ20Z45_FullChargCap );
+  return read16u(BQ20Z45_FullChargCap );
 }
 uint16_t BQ20Z45::RunTimeTillEmpty()
 {
-	return read16u(BQ20Z45_RunTime2Empty );
+  return read16u(BQ20Z45_RunTime2Empty );
 }
 uint16_t BQ20Z45::AverageTimeTillEmpty()
 {
-	return read16u(BQ20Z45_AveTime2Empty );	
+  return read16u(BQ20Z45_AveTime2Empty ); 
 }
 uint16_t BQ20Z45::AverageTimeTillFull()
 {
-	return read16u(BQ20Z45_AveTime2Full );	
+  return read16u(BQ20Z45_AveTime2Full );  
 }
 uint16_t BQ20Z45::ChargingCurrent()
 {
-	return read16u(BQ20Z45_ChargCurrent );	
+  return read16u(BQ20Z45_ChargCurrent );  
 }
 uint16_t BQ20Z45::ChargingVoltage()
 {
-	return read16u(BQ20Z45_ChargVolt );	
+  return read16u(BQ20Z45_ChargVolt ); 
 }
 uint16_t BQ20Z45::CycleCount()
 {
-	return read16u(BQ20Z45_CycleCount );	
+  return read16u(BQ20Z45_CycleCount );  
 }
 uint16_t BQ20Z45::DesignCapacity()
 {
-	return read16u(BQ20Z45_DesignCapacity );	
+  return read16u(BQ20Z45_DesignCapacity );  
 }
 uint16_t BQ20Z45::DesignVoltage()
 {
-	return read16u(BQ20Z45_DesignVoltage );	
+  return read16u(BQ20Z45_DesignVoltage ); 
 }
 uint16_t BQ20Z45::CellVoltage1()
 {
-	return read16u(BQ20Z45_CellVolt1 );	
+  return read16u(BQ20Z45_CellVolt1 ); 
 }
 uint16_t BQ20Z45::CellVoltage2()
 {
-	return read16u(BQ20Z45_CellVolt2 );	
+  return read16u(BQ20Z45_CellVolt2 ); 
 }
 uint16_t BQ20Z45::CellVoltage3()
 {
-	return read16u(BQ20Z45_CellVolt3 );	
+  return read16u(BQ20Z45_CellVolt3 ); 
 }
 uint16_t BQ20Z45::CellVoltage4()
 {
-	return read16u(BQ20Z45_CellVolt4 );	
+  return read16u(BQ20Z45_CellVolt4 ); 
 }
 uint16_t BQ20Z45::PendingEVD()
 {
-	return read16u(BQ20Z45_PendingEDV );	
+  return read16u(BQ20Z45_PendingEDV );  
 }
 uint8_t BQ20Z45::StateOfHealth()
 {
-	return read(BQ20Z45_StateOfHealth);
+  return read(BQ20Z45_StateOfHealth);
 }
 
 uint16_t BQ20Z45::BatteryStatus()
 {
-	return read16u(BQ20Z45_BatteryStatus);
+  return read16u(BQ20Z45_BatteryStatus);
 }
 
 uint32_t BQ20Z45::SafetyAlert()
 {
-	return read32u(BQ20Z45_SafetyAlert);
+  return read32u(BQ20Z45_SafetyAlert);
 }
 
 uint32_t BQ20Z45::SafetyStatus()
 {
-	return read32u(BQ20Z45_SafetyStatus);
+  return read32u(BQ20Z45_SafetyStatus);
 }
 
 uint16_t BQ20Z45::PFAlert()
 {
-	return read16u2(BQ20Z45_PFAlert);
+  return read16u2(BQ20Z45_PFAlert);
 }
 
 uint16_t BQ20Z45::PFStatus()
 {
- 	return read16u2(BQ20Z45_PFStatus);
+  return read16u2(BQ20Z45_PFStatus);
 }
 
 uint32_t BQ20Z45::OperationStatus()
 {
- 	return read32u(BQ20Z45_OperationStatus);
+  return read32u(BQ20Z45_OperationStatus);
 }
 
 uint16_t BQ20Z45::ChargingStatus()
 {
- 	return read16u(BQ20Z45_ChargingStatus);
+  return read16u(BQ20Z45_ChargingStatus);
 }
 
 uint16_t BQ20Z45::BattMode()
 {
- 	return read16u(BQ20Z45_BattMode);
+  return read16u(BQ20Z45_BattMode);
 }
 
+uint16_t BQ20Z45::SpecificationInfo(void){
+  return read16u(BQ20Z45_SpecificationInfo);  
+}
+
+uint16_t BQ20Z45::ManufactureDate(void){
+    return read16u(BQ20Z45_ManufactureDate);  
+}
+
+uint16_t BQ20Z45::SerialNumber(void){
+    return read16u(BQ20Z45_SerialNumber); 
+}
+
+uint8_t BQ20Z45::ManufactureName(uint8_t* buffer){
+    return readString(BQ20Z45_ManufactureName, buffer); 
+}
+
+uint8_t BQ20Z45::DeviceName(uint8_t* buffer){
+    return readString(BQ20Z45_DeviceName, buffer);  
+}
+
+uint8_t BQ20Z45::DeviceChemistry(uint8_t* buffer){
+    return readString(BQ20Z45_DeviceChemistry, buffer); 
+}
+
+uint8_t BQ20Z45::ManufactureData(uint8_t* buffer){
+    return readString(BQ20Z45_ManufactureData, buffer); 
+}
+  
 //int BQ20Z45::readString(uint8_t address, char* result) /// This isn't all thats needed here right? I don't know what should go below. HELP!
