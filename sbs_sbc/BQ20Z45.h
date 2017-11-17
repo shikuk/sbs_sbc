@@ -9,7 +9,7 @@
 #define BQ20Z45_RemainCapAlarm    0x01 // If RemainingCapacity < RemainingCapacityAlarm, [RCA] flag is AlarmWarning message to SMBUS host.
 #define BQ20Z45_RemainTimeAlarm   0x02 // If AverageTimeToEmpty < RemainingTimeAlarm, [RTA] flag is set  AlarmWarning message to SMBus host.
 #define BQ20Z45_BattMode          0x03 //
-#define BQ20Z45_AtRate            0x04  
+#define BQ20Z45_AtRate            0x04
 #define BQ20Z45_AtRateTimeToFull  0x05
 #define BQ20Z45_AtRateTimeToEmpty 0x06
 #define BQ20Z45_AtRateOK          0x07
@@ -76,7 +76,7 @@
 #define BQ20Z45_LifetimeDataBlock6 0x65
 
 #define BQ20Z45_ManufacturerInfo   0x70
-#define BQ20Z45_SenseResistor      0x71  
+#define BQ20Z45_SenseResistor      0x71
 #define BQ20Z45_TempRange          0x72
 #define BQ20Z45_CUVSnapshot        0x80
 #define BQ20Z45_COVSnapshot        0x81
@@ -100,28 +100,28 @@
 /* Battery manuf status bitmap */
 #define STATE0              (1 << 8)
 #define STATE1              (1 << 9)
-#define STATE2              (1 << 10) 
+#define STATE2              (1 << 10)
 #define STATE3              (1 << 11)
 #define PF0                 (1 << 12) // Cell imbalance permanent failure 0,0 fuse blown
 #define PF1                 (1 << 13) // Safety voltage failure 1,1 FET failure
 #define FET0                (1 << 14) // 0 = DSG FET is off 1 = DSG FET is on
 #define FET1                (1 << 15) // 0 = CHG FET is off 1 = CHG FET is on
 
-/* states 
-* STATE3, STATE2, STATE1, STATE0 — Indicates the battery state.
-* 0,0,0,0 = Wake Up
-* 0,0,0,1 = Normal Discharge
-* 0,0,1,1 = Pre-Charge
-* 0,1,0,1 = Charge
-* 0,1,1,1 = Charge Termination
-* 1,0,0,1 = Permanent Failure
-* 1,0,1,0 = Overcurrent
-* 1,0,1,1 = Overtemperature
-* 1,1,0,0 = Battery Failure
-* 1,1,0,1 = Sleep
-* 1,1,1,0 = Reserved
-* 1,1,1,1 = Battery Pack Removed
-*/ 
+/* states
+  STATE3, STATE2, STATE1, STATE0 — Indicates the battery state.
+  0,0,0,0 = Wake Up
+  0,0,0,1 = Normal Discharge
+  0,0,1,1 = Pre-Charge
+  0,1,0,1 = Charge
+  0,1,1,1 = Charge Termination
+  1,0,0,1 = Permanent Failure
+  1,0,1,0 = Overcurrent
+  1,0,1,1 = Overtemperature
+  1,1,0,0 = Battery Failure
+  1,1,0,1 = Sleep
+  1,1,1,0 = Reserved
+  1,1,1,1 = Battery Pack Removed
+*/
 #define WAKE_UP       0x0
 #define NORM_DISCH      0x1
 #define PRECHARGE     0x3
@@ -134,20 +134,20 @@
 #define SLEEP       0xD
 #define PACKREMOVED     0xF
 /* FET1, FET0 — Indicates the state of the charge and discharge FETs
-0,0 = Both charge and discharge FETs are on.
-0,1 = CHG FET is off, DSG FET is on.
-1,0 = Both charge and discharge FETs are off.
-1,1 = CHG FET is on, DSG FET is off.
+  0,0 = Both charge and discharge FETs are on.
+  0,1 = CHG FET is off, DSG FET is on.
+  1,0 = Both charge and discharge FETs are off.
+  1,1 = CHG FET is on, DSG FET is off.
 */
 #define BOTH_ON       0x0
 #define DISCH_ON      0x1
 #define BOTH_OFF      0x2
 #define CHG_ON        0x3
 /*PF1, PF0 — Indicates permanent failure cause when permanent failure indicated by STATE3..STATE0
-0,0 = Fuse is blown if enabled via DF:Configuration:Registers(64):Permanent Fail Cfg(6)
-0,1 = Cell imbalance failure
-1,0 = Safety voltage failure
-1,1 = FET failure 
+  0,0 = Fuse is blown if enabled via DF:Configuration:Registers(64):Permanent Fail Cfg(6)
+  0,1 = Cell imbalance failure
+  1,0 = Safety voltage failure
+  1,1 = FET failure
 */
 #define FUSE_BLOWN      0x0
 #define CELL_IMBALANCE    0x1
@@ -159,67 +159,68 @@ class BQ20Z45
 {
   public:
 
-  
-  uint16_t GetTemp(void);
+
+    uint16_t GetTemp(void);
     uint16_t GetVoltage(void);
     int16_t GetCurrent(void);
-  int16_t AverageCurrent(void);
-  uint8_t RelativeSOC(void);  
-  uint8_t AbsoluteSOC(void);
-  uint16_t RemainingCapAlarm(void); 
-  uint16_t RemainingTimeAlarm(void);
-  int16_t AtRate(void);
-  uint16_t AtRateTimeToFull(void);
-  uint16_t AtRateTimeToEmpty(void);
-  uint16_t AtRateOK(void);
-  uint8_t MaxError(void);
-  uint16_t RemainingBatteryCapacity(void);
-  uint16_t FullBatteryCapacity(void);
-  uint16_t RunTimeTillEmpty(void);
-  uint16_t AverageTimeTillEmpty(void);
-  uint16_t AverageTimeTillFull(void);
-  uint16_t ChargingCurrent(void);
-  uint16_t ChargingVoltage(void);
-  uint16_t CycleCount(void);
-  uint16_t DesignCapacity(void);
+    int16_t AverageCurrent(void);
+    uint8_t RelativeSOC(void);
+    uint8_t AbsoluteSOC(void);
+    uint16_t RemainingCapAlarm(void);
+    uint16_t RemainingTimeAlarm(void);
+    int16_t AtRate(void);
+    uint16_t AtRateTimeToFull(void);
+    uint16_t AtRateTimeToEmpty(void);
+    uint16_t AtRateOK(void);
+    uint8_t MaxError(void);
+    uint16_t RemainingBatteryCapacity(void);
+    uint16_t FullBatteryCapacity(void);
+    uint16_t RunTimeTillEmpty(void);
+    uint16_t AverageTimeTillEmpty(void);
+    uint16_t AverageTimeTillFull(void);
+    uint16_t ChargingCurrent(void);
+    uint16_t ChargingVoltage(void);
+    uint16_t CycleCount(void);
+    uint16_t DesignCapacity(void);
     uint16_t DesignVoltage(void);
-  uint16_t CellVoltage1(void);
-  uint16_t CellVoltage2(void);
+    uint16_t CellVoltage1(void);
+    uint16_t CellVoltage2(void);
     uint16_t CellVoltage3(void);
     uint16_t CellVoltage4(void);
     uint16_t PendingEVD(void);
-  uint8_t StateOfHealth(void);
-  uint16_t BatteryStatus(void);
+    uint8_t StateOfHealth(void);
+    uint16_t BatteryStatus(void);
     uint32_t SafetyAlert(void);
     uint32_t SafetyStatus(void);
-  uint16_t PFAlert(void); 
+    uint16_t PFAlert(void);
     uint16_t PFStatus(void);
-  uint32_t OperationStatus(void);
-  uint16_t ChargingStatus(void);
-  uint16_t BattMode (void);
-  uint16_t SpecificationInfo(void);
-  uint16_t ManufactureDate(void);
-  uint16_t SerialNumber(void);
-  uint8_t ManufactureName(uint8_t* buffer);
-  uint8_t DeviceName(uint8_t* buffer);
-  uint8_t DeviceChemistry(uint8_t* buffer);
-  uint8_t ManufactureData(uint8_t* buffer);
+    uint32_t OperationStatus(void);
+    uint16_t ChargingStatus(void);
+    uint16_t BattMode (void);
+    uint16_t SpecificationInfo(void);
+    uint16_t ManufactureDate(void);
+    uint16_t SerialNumber(void);
+    uint8_t ManufactureName(uint8_t* buffer);
+    uint8_t DeviceName(uint8_t* buffer);
+    uint8_t DeviceChemistry(uint8_t* buffer);
+    uint8_t ManufactureData(uint8_t* buffer);
 
-  uint8_t Check_Reg(uint8_t address, uint8_t reg);
+    uint8_t Check_Reg(uint8_t address, uint8_t reg);
     uint16_t read16uManuf(uint16_t reg);
-  
+    void readAndReportData(uint8_t address, uint8_t theRegister, uint8_t numBytes, uint8_t* i2cRxData, uint8_t stopTX);
+    
   protected:
-    
+
   private:
-    
-  void write(uint8_t,uint8_t);
-  uint8_t read(uint8_t);  
+
+    void write(uint8_t, uint8_t);
+    uint8_t read(uint8_t);
     uint16_t read16u(uint8_t);
     int16_t read16(uint8_t);
-  uint32_t read32u(uint8_t);
-  uint16_t read16u2(uint8_t);
-  void write16(uint8_t address, uint16_t data);
-  uint8_t readString(uint8_t address, uint8_t* result);
+    uint32_t read32u(uint8_t);
+    uint16_t read16u2(uint8_t);
+    void write16(uint8_t address, uint16_t data);
+    uint8_t readString(uint8_t address, uint8_t* result);
 
 };
 #endif

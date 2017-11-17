@@ -33,15 +33,15 @@ enum {WAIT = 0, IDLE, CHARGING, DISCHARGING};
 uint8_t chg_state;
 uint8_t duty;
 BQ24725_charge_options* BQ24725_current_opts;
-
+uint16_t prevMillis;
 enum chemistry { LION, NiMh, ACID};
 
 struct battstate {
-  int16_t Vpack;
-  int16_t V1;     // mV
-  int16_t V2;
-  int16_t V3;
-  int16_t V4;
+  uint16_t Vpack;
+  uint16_t V1;     // mV
+  uint16_t V2;
+  uint16_t V3;
+  uint16_t V4;
   float celsius;
   float Current;
   int16_t req_current;
@@ -68,6 +68,11 @@ void set_def_batt (void) {
   batt_state.type = LION;
 }
 
+uint8_t StrToHex(uint8_t str[])
+{
+  return (uint8_t) strtol(str, 0, 16);
+}
+
 void parse_cmd (String cmd) {
   String sub;
 
@@ -75,9 +80,9 @@ void parse_cmd (String cmd) {
   if (serial_in.startsWith("devs")) {
     for (uint8_t i = 0; i < 128; i++) {
       check_i2c_addr (i);
-      delay (50);
+      delay (10);
     }
-    Serial.println("That's all devices");
+    Serial.println(F("That's all devices"));
   }
 
   // SCAN I2C device regs
@@ -88,7 +93,7 @@ void parse_cmd (String cmd) {
     if ((addr != 0) || (addr > 128)) {
       for (uint8_t i = 0; i < 255; i++) {
         if (bms.Check_Reg(addr, i )) {
-          Serial.print ("exist reg ");
+          Serial.print ("exist ");
           Serial.println(i, HEX);
         }
         delay (5);
@@ -109,8 +114,13 @@ void parse_cmd (String cmd) {
 
   // start discharge process
   if (serial_in.startsWith("dchg")) {
-    discharge ();
+    sub = serial_in.substring(4);
+    sub.trim();
+    int current = sub.toInt();
+    batt_state.req_current = current;
+    discharge(current);
   }
+
   // stop all
   if (serial_in.startsWith("stop")) {
     charge (0, 0);
@@ -125,7 +135,7 @@ void parse_cmd (String cmd) {
     int volt = sub.toInt();
     Serial.println(volt);
     BQ24725_SetChargeVoltage (volt);
-    batt_state.want_volt=volt;
+    batt_state.want_volt = volt;
     delay(100);
     BQ24725_GetChargeVoltage (&data);
     Serial.print ("get VBatt=");
@@ -142,6 +152,7 @@ void parse_cmd (String cmd) {
     Serial.print("Charging Voltage: ");
     Serial.println(bms.ChargingVoltage());
   }
+
   // set alone charge current
   if (serial_in.startsWith("curr")) {
     Serial.print("Set current: ");
@@ -150,6 +161,7 @@ void parse_cmd (String cmd) {
     int current = sub.toInt();
     Serial.println(current);
     BQ24725_SetChargeCurrent (current);
+    batt_state.req_current = current;
     delay(100);
     BQ24725_GetChargeVoltage (&data);
     Serial.print ("get VBatt=");
@@ -157,12 +169,49 @@ void parse_cmd (String cmd) {
     BQ24725_GetChargeCurrent (&data);
     Serial.print ("get chgCurr=");
     Serial.println(data);
+    chg_state = CHARGING;
   }
+ 
   // dump SBS data
   if (serial_in.startsWith("dump")) {
     batt_dump();
   }
 
+  // translate i2c commands from PC
+  if (serial_in.startsWith("iicc"))  {
+    String sub1, sub2;
+    Serial.print("i2c: ");
+    sub = serial_in.substring(4);
+    sub.trim();
+    uint8_t cmd, addr, reg, cnt;
+    uint8_t buf[2];
+    uint16_t param;
+    byte i2cRxData[64];
+    sub1 = sub[0];
+    cmd = sub1.toInt();
+    buf[0] = sub[1];
+    buf[1 ]= sub[2];
+    addr = StrToHex (buf);
+    buf[0] = sub[3];
+    buf[1 ]= sub[4];
+    reg = StrToHex (buf);
+    buf[0] = sub[5];
+    buf[1 ]= sub[6];
+    cnt = StrToHex (buf);
+    sub2 = sub.substring(7);
+    param = sub2.toInt();
+
+    Serial.print(cmd, HEX);   Serial.print(F(" addr "));     Serial.print(addr, HEX);   Serial.print(F(" reg "));    Serial.print(reg, HEX);  Serial.print(F(" cnt "));    Serial.println(cnt);
+    bms.readAndReportData (addr | cmd, reg, cnt, i2cRxData, 0);
+    Serial.print ("get ");
+    for (int i = 0; i < cnt + 2; i++ ) {
+//      Serial.print (" 0x");
+      if (i2cRxData[i]<=0xF) Serial.print("0");
+      Serial.print(i2cRxData[i], HEX);
+    }
+    Serial.println(" ");
+
+  }
   serial_in = "";
 
 }
@@ -226,8 +275,9 @@ void setup() {
 void loop() {
   // get commands
   char c;
-  float check;
+  uint16_t check;
   int16_t batt_curr;
+  int16_t tmp;
   while (Serial.available()) {
     delay(3);  //delay to allow buffer to fill
     if (Serial.available() > 0) {
@@ -254,36 +304,24 @@ void loop() {
       break;
 
     case CHARGING:
-      BQ24725_GetChargeVoltage (&data);
-      Serial.print (F("CHG V "));
-      Serial.print (data / 1000.0, 3);
-      batt_curr = bms.GetCurrent();
-      Serial.print (F(" A "));
-      Serial.print (batt_curr);
-      Serial.print (F(" req "));
-      Serial.print (batt_state.req_current);
-      if ((batt_state.req_current - batt_curr) > 64) {
-        //BQ24725_SetChargeVoltage (bms.GetVoltage() + 64);
-        batt_state.want_volt +=64;
-        charge (batt_state.want_volt, batt_state.req_current);
-        Serial.println (F(" need more"));
-      }
-      if ((batt_state.req_current - batt_curr) < -64) {
-        // BQ24725_SetChargeVoltage (bms.GetVoltage() - 64);
-                batt_state.want_volt -=64;
-        charge (batt_state.want_volt, batt_state.req_current);
-
-        Serial.println (F(" need less"));
-      }
       green_on();
+      if (millis() - prevMillis > 3600)
+      {
+        charge (batt_state.want_volt, batt_state.req_current);
+        prevMillis = millis();
+      }
       break;
 
     case DISCHARGING:
       batt_curr = bms.GetCurrent();
-      if (batt_curr <  -(batt_state.capacity >> 2))
+      if (batt_curr <  -(batt_state.req_current))
         disch_pwm (--duty);
-      if (batt_curr > -(batt_state.capacity >> 2))
+      if (batt_curr > -(batt_state.req_current))
         disch_pwm (++duty);
+                    Serial.print("curr ");
+        Serial.print(batt_curr);
+                    Serial.print(" duty ");
+
       Serial.println(duty);
       red_on();
       check = bms.CellVoltage1();
@@ -327,42 +365,46 @@ void loop() {
   }// switch (chg_state)
 
   check = bms.GetVoltage();
-  if (abs(batt_state.Vpack - check) > 0.015) {
+  tmp = batt_state.Vpack - check;
+  if (tmp > 10 || tmp < -10) {
     batt_state.Vpack = check;
-    Serial.print("Volt: ");
+    Serial.print(F("Volt: "));
     Serial.println(check);
   }
 
   check = bms.CellVoltage1();
-  if (abs(batt_state.V1 - check) > 100) {
+  tmp = batt_state.V1 - check;
+  if (tmp > 10 || tmp < -10) {
     batt_state.V1 = check;
     Serial.print("V1: ");
     Serial.println(check / 1000.0);
   }
 
   check = bms.CellVoltage2();
-  if (abs(batt_state.V2 - check) > 100) {
+  tmp = batt_state.V2 - check;
+  if (tmp > 10 || tmp < -10) {
     batt_state.V2 = check;
     Serial.print("V2: ");
     Serial.println(check / 1000.0);
   }
 
   check = bms.CellVoltage3();
-  if (abs(batt_state.V3 - check) > 100) {
+  tmp = batt_state.V3 - check;
+  if (tmp > 10 || tmp < -10) {
     batt_state.V3 = check;
     Serial.print("V3: ");
     Serial.println(check / 1000.0);
   }
 
   check = bms.GetTemp();
-  if (batt_state.celsius != check) {
+  if ((batt_state.celsius - check) > 10) {
     batt_state.celsius = check;
     Serial.print("Temp: ");
     Serial.println (check / 10.0 - 273.15);
   }
 
   check = bms.GetCurrent();
-  if (abs(batt_state.Current - check) > 0.015) {
+  if (abs(batt_state.Current - check) > 5) {
     batt_state.Current = check;
     Serial.print("Current: ");
     Serial.print  (check);
@@ -377,7 +419,7 @@ void loop() {
 
 void batt_dump()
 {
-uint16_t status;
+  uint16_t status;
   p_manufDATA();
   p_manufAccess();
   p_battStatus();
@@ -426,20 +468,6 @@ uint16_t status;
     Serial.println (F(" mAh"));
   else Serial.println (F(" *10 mWh"));
 
-  Serial.print("Battery Status Flags: ");
-  Serial.println(bms.BatteryStatus(), HEX);
-  status = bms.BatteryStatus();
-  if (status & 0x8000) Serial.println("OVER_CHARGED_ALARM");
-  if (status & 0x4000) Serial.println("TERMINATE_CHARGE_ALARM");
-  if (status & 0x1000) Serial.println("OVER_TEMP_ALARM");
-  if (status & 0x0800) Serial.println("TERMINATE_DISCHARGE_ALARM");
-  if (status & 0x0200) Serial.println("REMAINING_CAPACITY_ALARM");
-  if (status & 0x0100) Serial.println("REMAINING_TIME_ALARM");
-  if (status & 0x0080) Serial.println("INITIALIZED");
-  if (status & 0x0040) Serial.println("DISCHARGING");
-  if (status & 0x0020) Serial.println("FULLY_CHARGED");
-  if (status & 0x0010) Serial.println("FULLY_DISCHARGED");
-
   Serial.println();
   //delay(300); // Show new results every second.
 
@@ -455,18 +483,17 @@ int check_i2c_addr (uint8_t address) {
   if (error == 0)
   {
 #ifdef DEBUG
-    Serial.print("I2C device found at address 0x");
+    Serial.print(F("address 0x"));
     if (address < 16)
       Serial.print("0");
-    Serial.print(address, HEX);
-    Serial.println("  !");
+    Serial.println(address, HEX);
 #endif
     return 1;
   }
   else if (error == 4)
   {
 #ifdef DEBUG
-    Serial.print("Unknown error at address 0x");
+    Serial.print(F("error at address 0x"));
     if (address < 16)
       Serial.print("0");
     Serial.println(address, HEX);
@@ -512,7 +539,7 @@ void charge (uint16_t V, uint16_t A) {
   chg_state = CHARGING;
 }
 
-void discharge (void) {
+void discharge (uint16_t A) {
   charge (0, 0);
   red_on ();
   disch_pwm (1);
@@ -520,12 +547,10 @@ void discharge (void) {
 
 }
 
-void disch_pwm (uint8_t dutyCycle)
-{
+void disch_pwm (uint8_t dutyCycle){
   Timer1.pwm(LOAD_ON_PIN,  ((float)dutyCycle / 100.0)  * 1023);
   delay (1);
 }
-
 
 void buf2serial (uint8_t* buffer, uint8_t len) {
   for  (uint8_t i = 0; i < len; i++) {
@@ -696,8 +721,12 @@ void p_manufAccess (void) {
   Serial.print(F("Controller IC identified by device type: "));
   if (data == 2084) {
     Serial.print(F("bq2084"));
-  } else    if (data == 0x700) {
+  }
+  else    if (data == 0x700) {
     Serial.print(F("bq20z70"));
+  }
+  else    if (data == 0x900) {
+    Serial.print(F("bq20z90"));
   }
   else     if (data == 0xA90A) {
     Serial.print(F("bq8011DBT"));
