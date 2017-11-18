@@ -78,8 +78,8 @@ int SMBusGet(uint8_t register_id, uint16_t* data) {
   Wire.endTransmission(false);
   Wire.requestFrom(BQ24725_ADDR, 2, true);
   low = Wire.read();
-  high=  Wire.read();
- // Wire.endTransmission();
+  high =  Wire.read();
+  // Wire.endTransmission();
   *data = DATA_FROM_BYTES(low, high);
 #else
   i2c_start((BQ24725_ADDR << 1) + I2C_WRITE);
@@ -98,13 +98,13 @@ int SMBusSet(uint8_t register_id, uint16_t data) {
   Wire.beginTransmission(BQ24725_ADDR);
   Wire.write(register_id);
   Wire.write(data & 0xFF);
-  Wire.write((data>>8) & 0xFF);
+  Wire.write((data >> 8) & 0xFF);
   Wire.endTransmission();
 #else
   i2c_start_wait((BQ24725_ADDR << 1) + I2C_WRITE);
   i2c_write(register_id);
   i2c_write (data & 0xFF);
-  i2c_write ((data>>8) & 0xFF);
+  i2c_write ((data >> 8) & 0xFF);
   i2c_stop();
 #endif
 
@@ -193,6 +193,6 @@ int BQ24725_ACOK(void) {
 }
 
 int BQ24725_IMON(void) {
-  imonbuf=analogRead (IMON_PIN); // IOUT voltage is 20 times the differential voltage across sense resistor
+  imonbuf = analogRead (IMON_PIN); // IOUT voltage is 20 times the differential voltage across sense resistor
   return imonbuf;
 }

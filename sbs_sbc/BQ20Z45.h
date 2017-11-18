@@ -205,10 +205,6 @@ class BQ20Z45
     uint8_t DeviceChemistry(uint8_t* buffer);
     uint8_t ManufactureData(uint8_t* buffer);
 
-    uint8_t Check_Reg(uint8_t address, uint8_t reg);
-    uint16_t read16uManuf(uint16_t reg);
-    void readAndReportData(uint8_t address, uint8_t theRegister, uint8_t numBytes, uint8_t* i2cRxData, uint8_t stopTX);
-    
   protected:
 
   private:

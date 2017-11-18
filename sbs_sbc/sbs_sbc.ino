@@ -10,6 +10,8 @@
 */
 #include "BQ24725_lib.h"
 #include "BQ20Z45.h"
+#include "i2c_helper.h"
+
 #include <TimerOne.h>
 
 #define MESSAGES
@@ -92,7 +94,7 @@ void parse_cmd (String cmd) {
     int addr = sub.toInt();
     if ((addr != 0) || (addr > 128)) {
       for (uint8_t i = 0; i < 255; i++) {
-        if (bms.Check_Reg(addr, i )) {
+        if (Check_Reg(addr, i )) {
           Serial.print ("exist ");
           Serial.println(i, HEX);
         }
@@ -155,7 +157,7 @@ void parse_cmd (String cmd) {
 
   // set alone charge current
   if (serial_in.startsWith("curr")) {
-    Serial.print("Set current: ");
+    Serial.print(F("Set current: "));
     sub = serial_in.substring(4);
     sub.trim();
     int current = sub.toInt();
@@ -164,10 +166,10 @@ void parse_cmd (String cmd) {
     batt_state.req_current = current;
     delay(100);
     BQ24725_GetChargeVoltage (&data);
-    Serial.print ("get VBatt=");
+    Serial.print (F("get VBatt="));
     Serial.println(data);
     BQ24725_GetChargeCurrent (&data);
-    Serial.print ("get chgCurr=");
+    Serial.print (F("get chgCurr="));
     Serial.println(data);
     chg_state = CHARGING;
   }
@@ -180,12 +182,11 @@ void parse_cmd (String cmd) {
   // translate i2c commands from PC
   if (serial_in.startsWith("iicc"))  {
     String sub1, sub2;
-    Serial.print("i2c: ");
+    Serial.print(F("i2c: "));
     sub = serial_in.substring(4);
     sub.trim();
     uint8_t cmd, addr, reg, cnt;
     uint8_t buf[2];
-    uint16_t param;
     byte i2cRxData[64];
     sub1 = sub[0];
     cmd = sub1.toInt();
@@ -198,21 +199,30 @@ void parse_cmd (String cmd) {
     buf[0] = sub[5];
     buf[1 ]= sub[6];
     cnt = StrToHex (buf);
-    sub2 = sub.substring(7);
-    param = sub2.toInt();
 
     Serial.print(cmd, HEX);   Serial.print(F(" addr "));     Serial.print(addr, HEX);   Serial.print(F(" reg "));    Serial.print(reg, HEX);  Serial.print(F(" cnt "));    Serial.println(cnt);
-    bms.readAndReportData (addr | cmd, reg, cnt, i2cRxData, 0);
-    Serial.print ("get ");
+    readAndReportData (addr | cmd, reg, cnt, i2cRxData, 0);
+    Serial.print ("get 0x");
     for (int i = 0; i < cnt + 2; i++ ) {
-//      Serial.print (" 0x");
       if (i2cRxData[i]<=0xF) Serial.print("0");
       Serial.print(i2cRxData[i], HEX);
     }
     Serial.println(" ");
 
   }
-  serial_in = "";
+ 
+  if (serial_in.startsWith("iicm"))  {
+    uint16_t cmd;
+    Serial.print(F("i2c manuf: "));
+    sub = serial_in.substring(4);
+    sub.trim();
+    cmd = sub.toInt();
+    data = read16uManuf (cmd);
+
+    Serial.print(F("get mx"));     Serial.print(cmd, HEX);   Serial.print(F(" ret "));    Serial.println(data, HEX);
+
+  }
+   serial_in = "";
 
 }
 
@@ -712,10 +722,10 @@ void p_manufDATA (void) {
 
 void p_manufAccess (void) {
   uint16_t data;
-  data = bms.read16uManuf (0x00);
+  data = read16uManuf (0x00);
   Serial.print(F("Manufaccess address: 0x"));
   Serial.println(data, HEX);
-  data = bms.read16uManuf (Device_Type);
+  data = read16uManuf (Device_Type);
   Serial.print(F("Device Type: 0x"));
   Serial.println(data, HEX);
   Serial.print(F("Controller IC identified by device type: "));
@@ -735,8 +745,8 @@ void p_manufAccess (void) {
     Serial.print(F("bq8030DBT"));
   }
   Serial.print (F(" fw/hw rev "));
-  Serial.print (data = bms.read16uManuf (Firmware_Version)); Serial.print (F("/")); Serial.println (data = bms.read16uManuf (Hardware_Version));
-  data = bms.read16uManuf (Manufacturer_Status);
+  Serial.print (data = read16uManuf (Firmware_Version)); Serial.print (F("/")); Serial.println (data = read16uManuf (Hardware_Version));
+  data = read16uManuf (Manufacturer_Status);
   Serial.print (F("Status: "));
   switch (data >> 8 & 0xF) {
     case  WAKE_UP: Serial.println (F("Wake Up")); break;

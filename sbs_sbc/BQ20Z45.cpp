@@ -47,12 +47,6 @@ uint16_t BQ20Z45::read16u(uint8_t address)
   return registerValue;
 }
 
-uint16_t BQ20Z45::read16uManuf(uint16_t reg) {
-  // ask for function #reg
-  write16 (BQ20Z45_ManAccess, reg);
-  // Read manufacturer result word
-  return read16u(BQ20Z45_ManAccess);
-}
 
 uint16_t BQ20Z45::read16u2(uint8_t address)
 {
@@ -97,20 +91,6 @@ uint32_t BQ20Z45::read32u(uint8_t address)
   return registerValue;
 }
 
-uint8_t BQ20Z45::Check_Reg(uint8_t address, uint8_t reg)
-{
-  Wire.beginTransmission(address);
-  Wire.write(reg);
-  if (Wire.endTransmission(false))
-    return 0;
-  else {
-    Wire.requestFrom(address, 1);
-    Wire.read();
-    Wire.endTransmission();
-    return 1;
-  }
-
-}
 
 // pass a pointer to a char[] that can take up to 33 chars
 // will return the length of the string received
@@ -337,33 +317,4 @@ uint8_t BQ20Z45::DeviceChemistry(uint8_t* buffer) {
 uint8_t BQ20Z45::ManufactureData(uint8_t* buffer) {
   return readString(BQ20Z45_ManufactureData, buffer);
 }
-
-void BQ20Z45::readAndReportData(uint8_t address, uint8_t theRegister, uint8_t numBytes,  uint8_t* i2cRxData, uint8_t stopTX) {
-  // allow I2C requests that don't require a register read
-  // for example, some devices using an interrupt pin to signify new data available
-  // do not always require the register read so upon interrupt you call Wire.requestFrom()
-  Wire.beginTransmission(address);
-  Wire.write((byte)theRegister);
-  Wire.endTransmission(stopTX); // default = true
-  // do not set a value of 0
-  // delay is necessary for some devices such as WiiNunchuck
-  delayMicroseconds(1);
-
-  Wire.requestFrom(address, numBytes);  // all bytes are returned in requestFrom
-
-  // check to be sure correct number of bytes were returned by slave
-  if (numBytes < Wire.available()) {
-    Serial.println("I2C: Too many bytes received");
-  } else if (numBytes > Wire.available()) {
-    Serial.println("I2C: Too few bytes received");
-  }
-
-  i2cRxData[0] = address;
-  i2cRxData[1] = theRegister;
-
-  for (uint8_t i = 0; i < numBytes && Wire.available(); i++) {
-    i2cRxData[2 + i] = Wire.read();
-  }
-}
-
 

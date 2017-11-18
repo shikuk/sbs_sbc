@@ -140,15 +140,38 @@ function appendToConsoleBuffer(text)
 	consoleBuffer += text;
 }
 
+function GetParams (consoleString) {
+	var tempVar = consoleString;
+
+	if (tempVar.indexOf ("get")>=0 ) {
+		var startindex=tempVar.search("x");
+		tempVar=tempVar.substring(startindex+1,tempVar.length);
+		var res = convertHexStringToByteArray(tempVar);
+		var outstr = "Get ";
+		if (res[0]==0x09)
+		outstr += "Charger";
+		else if (res[0]==0x0b)
+		outstr += "Batt ";
+		else 
+		outstr += "addr ";
+
+		outstr += sbs_regs[res[1]];
+
+		for (var i=2; i<2+(res.length-2)/2; i++) {
+			var lint = res[i+1]<<8 | res[i];
+			outstr += "value " + lint +" ";
+		}
+		UI_Result.append(outstr);
+		UI_I2cBytesToSend.setText(outstr);
+	}
+}
+
 //Data has been received with the main interface.
 function dataReceivedSlot(data)
 {
 	var consoleString = ""
 	consoleString = conv.byteArrayToString(data);
-	if (consoleString.match("V1")) {
-			var value=consoleString.split(" ");
-			appendToConsoleBuffer("Get V1=" + value[1]);
-		}
+	GetParams (consoleString);
 	appendToConsoleBuffer("<span style=\"color:#00ff00;\">" + UI_scriptConsole.replaceNonHtmlChars(consoleString) + "</span>");
 }
 
@@ -217,7 +240,7 @@ function StopChargeDischarge()
 	{
 		UI_scriptConsole.append("execute Stop charge/discharge failed");
 	}
-		timer.stop();
+	timer.stop();
 	plotWidget.setAutoUpdateEnabled(false);
 }
 
@@ -284,6 +307,31 @@ function SetCurrent()
 	}
 }
 
+function GetManuf() 
+{
+	var tmpText = UI_ManufReg.text();
+
+	for(var i = UI_ManufReg.text().length; i < 4; i++)
+	{
+		tmpText = "0" + tmpText;
+	}
+	UI_ManufReg.setText(tmpText);
+	 tmpText = UI_ManufReg.text();
+
+	reg = parseInt(UI_ManufReg.text().slice(2, 4), 16) & 0xff;
+	reg = reg<<8 &  parseInt(UI_ManufReg.text().slice(0, 2), 16) & 0xff;
+
+	tmpText = "iicm "+tmpText;
+	
+	if(scriptInf.sendString(tmpText))
+	{
+		UI_scriptConsole.append("Set manuf reg value" +  UI_Current.text() );
+	}
+	else
+	{
+		UI_scriptConsole.append("execute manuf reg value failed");
+	}
+}
 
 function StartCharge() 
 {
@@ -331,7 +379,7 @@ function StartDischarge()
 function plotWindowMousePress(xValue, yValue, button)
 {
 	if ((button != 1) && (button != 2))
-		return;
+	return;
 
 	var column = button - 1;
 	
@@ -371,13 +419,13 @@ function GetCellVolt( cell)
 {
 	
 	var tmpText = "iicc00B";
-if (cell ==1) 
+	if (cell ==1) 
 	tmpText += "3F";
-if (cell ==2) 
+	if (cell ==2) 
 	tmpText += "3E";
-if (cell ==3) 
+	if (cell ==3) 
 	tmpText += "3D";
-tmpText += "2\r\n";
+	tmpText += "2\r\n";
 
 	scriptInf.sendString(tmpText);
 
@@ -422,6 +470,8 @@ UI_StartChg.clickedSignal.connect(StartCharge);
 UI_StartDisch.clickedSignal.connect(StartDischarge);
 UI_Stop.clickedSignal.connect(StopChargeDischarge);
 
+UI_GetManuf.clickedSignal.connect(GetManuf);
+
 //Create a plot widget and setup them. some example graphs.
 var plotWidget = UI_groupBoxPlotContainer.addPlotWidget();
 plotWidget.setAxisLabels("x", "y");
@@ -432,3 +482,61 @@ plotWidget.plotMousePressSignal.connect(plotWindowMousePress);
 //create periodically timer which calls the function timeout
 var timer = scriptThread.createTimer()
 timer.timeoutSignal.connect(timeout);
+
+
+var sbs_regs =["ManufacturerAccess","RemainingCapacityAlarm","RemainingTimeAlarm","BatteryMode",
+"AtRate",
+"AtRateTimeToFul","AtRateTimeToEmpty","AtRateOK",
+"Temperature","Voltage","Current","AverageCurrent",
+"MaxError",
+"RelativeStateOfCharge","AbsoluteStateOfCharge",
+"RemainingCapacity",
+"FullChargeCapacity",
+"RunTimeToEmpty",
+"AverageTimeToEmpty",
+"AverageTimeToFull",
+"ChargingCurrent",
+"ChargingVoltage",
+"BatteryStatus",
+"CycleCount",
+"DesignCapacity",
+"DesignVoltage",
+"SpecificationInfo",
+"ManufactureDate",
+"SerialNumber",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"ManufacturerName",
+"DeviceName String",
+"DeviceChemistry String",
+"ManufacturerData String",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Authenticate",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"Not Exist",
+"CellVoltage4",
+"CellVoltage3",
+"CellVoltage2",
+"CellVoltage1"
+];
