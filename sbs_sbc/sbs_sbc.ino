@@ -31,6 +31,7 @@ BQ20Z45 bms;
 uint16_t data;
 String serial_in;
 uint8_t printed = 0;
+uint8_t autonomous=1;
 enum {WAIT = 0, IDLE, CHARGING, DISCHARGING};
 uint8_t chg_state;
 uint8_t duty;
@@ -123,6 +124,17 @@ void parse_cmd (String cmd) {
     discharge(current);
   }
 
+  // set duty to check disch curent process
+  if (serial_in.startsWith("duty")) {
+    sub = serial_in.substring(4);
+    sub.trim();
+    int current = sub.toInt();
+  BQ24725_SetChargeVoltage (0);
+  BQ24725_SetChargeCurrent (0);
+  disch_pwm (current);
+  chg_state = IDLE;
+  }
+  
   // stop all
   if (serial_in.startsWith("stop")) {
     charge (0, 0);
@@ -181,6 +193,7 @@ void parse_cmd (String cmd) {
 
   // translate i2c commands from PC
   if (serial_in.startsWith("iicc"))  {
+    autonomous=0;
     String sub1, sub2;
     Serial.print(F("i2c: "));
     sub = serial_in.substring(4);
@@ -199,8 +212,9 @@ void parse_cmd (String cmd) {
     buf[0] = sub[5];
     buf[1 ]= sub[6];
     cnt = StrToHex (buf);
-
+#ifdef DEBUG 
     Serial.print(cmd, HEX);   Serial.print(F(" addr "));     Serial.print(addr, HEX);   Serial.print(F(" reg "));    Serial.print(reg, HEX);  Serial.print(F(" cnt "));    Serial.println(cnt);
+#endif
     readAndReportData (addr | cmd, reg, cnt, i2cRxData, 0);
     Serial.print ("get 0x");
     for (int i = 0; i < cnt + 2; i++ ) {
@@ -297,8 +311,10 @@ void loop() {
   }
 
   if (serial_in.length() > 0) {
+#ifdef DEBUG     
     Serial.print("Command: ");
     Serial.println(serial_in); //see what was received
+#endif 
     parse_cmd (serial_in);
   }
 
@@ -374,6 +390,7 @@ void loop() {
       break;
   }// switch (chg_state)
 
+if (autonomous) { // pc based control asks and controls values, no need more info to console
   check = bms.GetVoltage();
   tmp = batt_state.Vpack - check;
   if (tmp > 10 || tmp < -10) {
@@ -413,14 +430,15 @@ void loop() {
     Serial.println (check / 10.0 - 273.15);
   }
 
-  check = bms.GetCurrent();
-  if (abs(batt_state.Current - check) > 5) {
-    batt_state.Current = check;
+  batt_curr = bms.GetCurrent();
+  if (abs(batt_state.Current - batt_curr) > 5) {
+    batt_state.Current = batt_curr;
     Serial.print("Current: ");
-    Serial.print  (check);
+    Serial.print  (batt_curr);
     Serial.print("  average: ");
     Serial.println  (bms.AverageCurrent());
   }
+} // autonomous
   // battery need delays
   delay (1000);
 
@@ -552,7 +570,7 @@ void charge (uint16_t V, uint16_t A) {
 void discharge (uint16_t A) {
   charge (0, 0);
   red_on ();
-  disch_pwm (1);
+  disch_pwm ((uint8_t)A/10);
   chg_state = DISCHARGING;
 
 }
