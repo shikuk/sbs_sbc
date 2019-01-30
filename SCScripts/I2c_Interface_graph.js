@@ -180,10 +180,10 @@ function GetParams (consoleString) {
 				Vpack =  res[3]<<8 | res[2]; 
 			break;
 			case 0x0A: //  current
-				Ibatt =  1000*(res[3]<<8 | res[2]); 
+				Ibatt =  (res[3]<<8 | res[2]); 
 			break;
-			case 0x08: // vPack
-				Tbatt =  250*((res[3]<<8 | res[2] )-2731)/10; 
+			case 0x08: // tPack
+				Tbatt =  ((res[3]<<8 | res[2] )-2731)/10; 
 			break;
 			}
 			
