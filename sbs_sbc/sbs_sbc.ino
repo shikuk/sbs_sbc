@@ -14,8 +14,8 @@
 
 #include <TimerOne.h>
 
-#define MESSAGES_0
-#define DEBUG_0
+#define MESSAGES
+#define DEBUG_OFF
 
 #define LOAD_ON_PIN 9
 #define RED_K_PIN   3
@@ -32,8 +32,9 @@ uint16_t data;
 String serial_in;
 uint8_t printed = 0;
 uint8_t autonomous = 1;
-enum {WAIT = 0, IDLE, CHARGING, DISCHARGING};
+enum {WAIT = 0, IDLE, CHARGING, DISCHARGING, RINT};
 uint8_t chg_state;
+uint8_t substate;
 uint16_t duty;
 BQ24725_charge_options* BQ24725_current_opts;
 uint16_t prevMillis;
@@ -62,6 +63,14 @@ struct battstate {
   int16_t current;
   int16_t avg_current;
   int16_t current_error;
+  int16_t rV1C1;
+  int16_t rV1C2;
+  int16_t rV1C3;
+  int16_t rV2C1;
+  int16_t rV2C2;
+  int16_t rV2C3;
+  int16_t rI1;
+  int16_t rI2;
 
 } batt_state;
 
@@ -115,6 +124,7 @@ void parse_cmd (String cmd) {
     int current = sub.toInt();
     charge (batt_state.want_volt, current);
     batt_state.req_current = current;
+      chg_state = CHARGING;
   }
 
   // start discharge process
@@ -124,8 +134,16 @@ void parse_cmd (String cmd) {
     int current = sub.toInt();
     batt_state.req_current = current;
     discharge(current);
+      chg_state = DISCHARGING;
   }
 
+  // get cells Rint 
+  if (serial_in.startsWith("getr")) {
+        chg_state = RINT;
+        substate=0;
+        prevMillis = millis();
+  }
+  
   // set duty to check disch curent process
   if (serial_in.startsWith("duty")) {
     sub = serial_in.substring(4);
@@ -156,12 +174,6 @@ void parse_cmd (String cmd) {
     BQ24725_SetChargeVoltage (volt);
     batt_state.want_volt = volt;
     delay(100);
-    BQ24725_GetChargeVoltage (&data);
-    Serial.print ("get VBatt=");
-    Serial.println(data);
-    BQ24725_GetChargeCurrent (&data);
-    Serial.print ("get chgCurr=");
-    Serial.println(data);
     Serial.print("Current: ");
     Serial.println(bms.GetCurrent());
 
@@ -181,13 +193,7 @@ void parse_cmd (String cmd) {
     Serial.println(current);
     BQ24725_SetChargeCurrent (current);
     batt_state.req_current = current;
-    delay(100);
-    BQ24725_GetChargeVoltage (&data);
-    Serial.print (F("get VBatt="));
-    Serial.println(data);
-    BQ24725_GetChargeCurrent (&data);
-    Serial.print (F("get chgCurr="));
-    Serial.println(data);
+    delay(10);
     chg_state = CHARGING;
   }
 
@@ -308,6 +314,7 @@ void loop() {
   int16_t batt_curr;
   int16_t tmp;
   int16_t diff;
+  float rint;
 
   while (Serial.available()) {
     delay(3);  //delay to allow buffer to fill
@@ -356,20 +363,20 @@ void loop() {
         batt_state.current_error = diff;
       }
       else {
-      if (batt_curr <  -(batt_state.req_current + batt_state.current_error + 10)) {
-        if (duty <= 0) duty = 1;
-        disch_pwm (--duty);
-      }
-      if (batt_curr > -(batt_state.req_current - batt_state.current_error - 10)) {
-        if (duty >= 99) duty = 98;
-        disch_pwm (++duty);
-      }
+        if (batt_curr <  -(batt_state.req_current + batt_state.current_error + 10)) {
+          if (duty <= 0) duty = 1;
+          disch_pwm (--duty);
+        }
+        if (batt_curr > -(batt_state.req_current - batt_state.current_error - 10)) {
+          if (duty >= 99) duty = 98;
+          disch_pwm (++duty);
+        }
       }
       Serial.print("curr ");
       Serial.print(batt_curr);
       Serial.print(" duty ");
       Serial.println(duty);
-      
+
       red_on();
       delay (2);
       check = bms.GetVoltage();
@@ -414,7 +421,52 @@ void loop() {
         printed = 0;
       }
       break;
-    default:
+      
+    case RINT:
+       charge (0, 0);
+       if (substate==0) {
+        leds_off();
+        discharge(300);
+        if (millis() - prevMillis > 5000) {
+          prevMillis = millis();
+          substate = 1;
+          batt_state.rV1C1 =bms.CellVoltage1();
+          batt_state.rV1C2 =bms.CellVoltage2();
+          batt_state.rV1C3 =bms.CellVoltage3();
+          batt_state.rI1 = bms.GetCurrent();
+        }
+      }
+      else if (substate==1) {
+        discharge (1000);
+        if (millis() - prevMillis > 10000)
+        {
+          batt_state.rV2C1 =bms.CellVoltage1();
+          batt_state.rV2C2 =bms.CellVoltage2();
+          batt_state.rV2C3 =bms.CellVoltage3();
+          batt_state.rI2 = bms.GetCurrent();
+           Serial.print (F("diff V "));
+           Serial.print (batt_state.rV1C1-batt_state.rV2C1);
+                      Serial.print (F("  I  "));
+           Serial.println (batt_state.rI2 - batt_state.rI1);
+
+          prevMillis = millis();
+          Serial.print (F("Ri  "));
+          rint = (float)(batt_state.rV1C1-batt_state.rV2C1)/(batt_state.rI2 - batt_state.rI1);
+          Serial.print (rint, 3);
+          Serial.print (F(" + "));
+          rint = (float)(batt_state.rV1C2-batt_state.rV2C2)/(batt_state.rI1 - batt_state.rI2);
+          Serial.print (rint, 3);
+          Serial.print (F(" + "));
+          rint = (float)(batt_state.rV1C3-batt_state.rV2C3)/(batt_state.rI1 - batt_state.rI2);
+          Serial.println (rint, 3);
+          chg_state = IDLE;
+          discharge(0);
+          charge(11800, 128);
+        }
+      }
+      break;
+      
+          default:
       if (!printed) {
         Serial.print (F("default state error"));
         printed = 1;
@@ -478,7 +530,7 @@ void loop() {
     }
   } // autonomous
   // battery need delays
-  delay (1000);
+  delay (500);
 
 }
 
@@ -602,15 +654,12 @@ void charge (uint16_t V, uint16_t A) {
 
   BQ24725_SetChargeVoltage (V);
   BQ24725_SetChargeCurrent (A);
-  chg_state = CHARGING;
 }
 
 void discharge (uint16_t A) {
   charge (0, 0);
   red_on ();
   disch_pwm ((uint16_t)A / 10);
-  chg_state = DISCHARGING;
-
 }
 
 void disch_pwm (uint16_t dutyCycle) {
@@ -790,6 +839,9 @@ void p_manufAccess (void) {
   }
   else    if (data == 0x700) {
     Serial.print(F("bq20z70"));
+  }
+  else    if (data == 0x650) {
+    Serial.print(F("bq20z65"));
   }
   else    if (data == 0x900) {
     Serial.print(F("bq20z90"));
