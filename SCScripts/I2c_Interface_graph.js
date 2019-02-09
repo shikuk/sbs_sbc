@@ -29,6 +29,14 @@ while(!scriptThread.scriptShallExit())
 ************************************************************************************************************
 */
 
+var Stages = ["WAIT",
+	"IDLE",
+	"CHARGING",
+	"DISCHARGING",
+	"RINT",
+	"                "
+];
+
 //Is called if this script shall be exited.
 function stopScript() 
 {
@@ -142,7 +150,8 @@ function appendToConsoleBuffer(text)
 
 function GetParams (consoleString) {
 	var tempVar = consoleString;
-
+	var toLog = 0;
+	/*
 	if (tempVar.indexOf ("get")>=0 ) {
 		var startindex=tempVar.search("x");
 		tempVar=tempVar.substring(startindex+1,tempVar.length);
@@ -180,7 +189,7 @@ function GetParams (consoleString) {
 				Vpack =  res[3]<<8 | res[2]; 
 			break;
 			case 0x0A: //  current
-				Ibatt =  (res[3]<<8 | res[2]); 
+				Ipack =  (res[3]<<8 | res[2]); 
 			break;
 			case 0x08: // tPack
 				Tbatt =  ((res[3]<<8 | res[2] )-2731)/10; 
@@ -188,7 +197,119 @@ function GetParams (consoleString) {
 			}
 			
 		UI_Result.append(outstr);
-		UI_I2cBytesToSend.setText(outstr);
+		//UI_I2cBytesToSend.setText(outstr);
+	}
+	*/
+	var list = tempVar.split("\n");
+
+	for (var i = 0; i < list.length; i++) {
+
+		var subStringArray = list[i].split("=");
+
+		if (subStringArray[0] == "Ib") {
+			tempVal = parseInt(subStringArray[1], 10);
+			if (Math.abs(tempVal - Ipack) > 10) {
+				Ipack = tempVal;
+				UI_Result.append("Ipack " + Ipack);
+				toLog = 1;
+			}
+		}
+		if (subStringArray[0] == "Vb") {
+			tempVal = parseInt(subStringArray[1], 10);
+			if (Math.abs(tempVal - Vpack) > 20) {
+				Vpack = tempVal;
+				UI_Result.append("Vpack " + Vpack);
+				toLog = 1;
+			}
+		}
+		if (subStringArray[0] == "Tb") {
+			tempVal = parseFloat(subStringArray[1]);
+			if (Math.abs(tempVal - Tbatt) > 0.5) {
+				Tbatt = tempVal;
+				UI_Result.append("Tbatt " + Tbatt);
+				toLog = 1;
+			}
+		}
+		if (subStringArray[0] == "RC") {
+			tempVal = parseInt(subStringArray[1], 10);
+			if (Math.abs(tempVal - RemCap) > 100) {
+				RemCap = tempVal;
+				UI_Result.append("RemCap " + RemCap);
+				toLog = 1;
+			}
+		}
+		if (subStringArray[0] == "CI") {
+			tempVal = parseInt(subStringArray[1], 10);
+			if (Math.abs(tempVal - CapIn) > 5000) {
+				CapIn = tempVal;
+				UI_Result.append("CapIn " + CapIn);
+				toLog = 1;
+			}
+		}
+		if (subStringArray[0] == "CO") {
+			tempVal = parseInt(subStringArray[1], 10);
+			if (Math.abs(tempVal - CapOut) > 5000) {
+				CapOut = tempVal;
+				UI_Result.append("CapOut " + CapOut);
+				toLog = 1;
+			}
+		}
+		if (subStringArray[0] == "RC") {
+			tempVal = parseInt(subStringArray[1], 10);
+			if (Math.abs(tempVal - RemCap) > 10) {
+				RemCap = tempVal;
+				UI_Result.append("Rcap " + RemCap);
+				//toLog = 1;
+			}
+		}
+		if (subStringArray[0] == "ST") {
+			stage = parseInt(subStringArray[1], 10);
+			UI_lStage.setText(Stages[stage]);
+			//appendToConsoleBuffer("Stage " + Stages[stage] + "\r\n");
+			toLog = 1;
+		}
+		if (subStringArray[0] == "V1") {
+			tempVal = parseInt(subStringArray[1], 10);
+			if (Math.abs(tempVal - Vcell1) > 10) {
+				Vcell1 = tempVal;
+				UI_Result.append("Vcell1 " + Vcell1);
+				toLog = 1;
+			}
+		}
+		if (subStringArray[0] == "V2") {
+			tempVal = parseInt(subStringArray[1], 10);
+			if (Math.abs(tempVal - Vcell2) > 10) {
+				Vcell2 = tempVal;
+				UI_Result.append("Vcell2 " + Vcell2);
+				toLog = 1;
+			}
+		}
+		if (subStringArray[0] == "V3") {
+			tempVal = parseInt(subStringArray[1], 10);
+			if (Math.abs(tempVal - Vcell3) > 10) {
+				Vcell3 = tempVal;
+				UI_Result.append("Vcell3 " + Vcell3);
+				toLog = 1;
+			}
+		}		
+					if (subStringArray[0] == "Ri1") {
+			UI_Rint1.setText(parseFloat(subStringArray[1], 10));
+		}
+					if (subStringArray[0] == "Ri2") {
+			UI_Rint2.setText(parseFloat(subStringArray[1], 10));
+		}
+					if (subStringArray[0] == "Ri2") {
+			UI_Rint3.setText(parseFloat(subStringArray[1], 10));
+		}
+		
+	}
+	millis = Date.now() - startTime;
+	UI_QIn.setText((CapIn).toFixed(2));
+	UI_QOut.setText((CapOut).toFixed(2));
+	UI_QRCap.setText((RemCap ).toFixed(2));
+	if (toLog) {
+	 plotAdd();
+		toLog = 0;
 	}
 }
 
@@ -360,6 +481,7 @@ function GetManuf()
 	}
 }
 
+
 //The plot window is closed.
 function plotWindowClosedSlot()
 {
@@ -399,8 +521,7 @@ function plotWindowShow() {
 	
 }
 
-function StartCharge() 
-{
+function StartCharge() {
 	var tmpText = UI_Current.text();
 	if (tmpText.length==0) {
 		tmpText="";
@@ -427,8 +548,7 @@ function StartCharge()
 	adjustTableColmnWidth();
 }
 
-function StartDischarge() 
-{
+function StartDischarge() {
 	var tmpText = UI_Current.text();
 	if (tmpText.length==0) {
 		tmpText="";
@@ -445,11 +565,19 @@ function StartDischarge()
 			UI_scriptConsole.append("execute DisCharge failed");
 		}
 	}
+
+		quene=0;
+	timer.start(777);
+	plottimer.start(5000);
+	startTime=Date.now();
+	plotWindow1.setAutoUpdateEnabled(true);
+	plotWindowShow() ;
+	row=0;
+	adjustTableColmnWidth();
 }
 
 //Is called if the user clicks on the plot.
-function plotWindowMousePress(xValue, yValue, button)
-{
+function plotWindowMousePress(xValue, yValue, button) {
 	if ((button != 1) && (button != 2))
 	return;
 
@@ -520,6 +648,9 @@ function GetTemp() {
 	scriptInf.sendString(tmpText);
 }
 
+function GetRint() {
+	scriptInf.sendString("getr\r\n");
+}
 //Called periodically to add some data to the plot widget
 function timeout() 
 {
@@ -554,14 +685,14 @@ function timeout()
 function plotAdd() {
 	var x = (Date.now()-startTime)/1000;
 		plotWindow1.addDataToGraph(plotVpack,  x, Vpack);
-		plotWindow1.addDataToGraph(plotTpack,  x, Ibatt);
+		plotWindow1.addDataToGraph(plotTpack,  x, Ipack);
 		plotWindow1.addDataToGraph(plotCurr,  x, Tbatt);
 		plotWindow1.addDataToGraph(plotCell1,  x, Vcell1);
 		plotWindow1.addDataToGraph(plotCell2,  x, Vcell2);
 		plotWindow1.addDataToGraph(plotCell3,  x, Vcell3);
-// var tmpString = Vpack.toString()+","+Ibatt.toString()+","+Tbatt.toString()+","+ Vcell1.toString()+","+ Vcell2.toString()+","+ Vcell3.toString();
+// var tmpString = Vpack.toString()+","+Ipack.toString()+","+Tbatt.toString()+","+ Vcell1.toString()+","+ Vcell2.toString()+","+ Vcell3.toString();
 
-UI_tableWidget.insertRowWithContent (row, Array (Vpack.toString(), Ibatt.toString(), Tbatt.toString(), Vcell1.toString(), Vcell2.toString(), Vcell3.toString()), Array ("black", "black", "black" , "black", "black", "black"), Array ("white", "white", "white", "white", "white", "white"));
+UI_tableWidget.insertRowWithContent (row, Array (Vpack.toString(), Ipack.toString(), Tbatt.toString(), Vcell1.toString(), Vcell2.toString(), Vcell3.toString()), Array ("black", "black", "black" , "black", "black", "black"), Array ("white", "white", "white", "white", "white", "white"));
 	row++;
 	adjustTableColmnWidth();
 //	for (var i=0; i<6; i++) 
@@ -601,6 +732,7 @@ UI_I2cReg.textChangedSignal.connect(UI_I2cReg, hexTextLineTextChangedSlot);
 UI_Close.clickedSignal.connect(UI_MainWindowFinished);
 
 UI_Dump.clickedSignal.connect(GetSBSDump);
+UI_GetRint.clickedSignal.connect(GetRint);
 UI_ScanDev.clickedSignal.connect(GetI2CDevices);
 UI_ScanRegs.clickedSignal.connect(GetI2CDevregs);
 UI_SetVolt.clickedSignal.connect(SetVolt);
@@ -646,9 +778,17 @@ var Vcell2=0;
 var Vcell3=0;
 var Vcell4=0;
 var Vpack=0;
-var Ibatt=0;
 var Tbatt=0;
-var startTime;
+var startTime=Date.now();
+	var RemCap = 0;
+	var CapIn = 0;
+	var CapOut = 0;
+	var Ipack = 0;
+	var Tbatt = 0;
+	var millis;
+	var row;
+	var stage = 0;
+	
 
 var row;
 var sbs_regs =["ManufacturerAccess","RemainingCapacityAlarm","RemainingTimeAlarm","BatteryMode",

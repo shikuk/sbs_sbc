@@ -1,41 +1,78 @@
-Call Smart Battery data dump
 ****** Battery Manuf ****** 
-SMP-ATL22 device OT06044  LION fw/hw rev 0x1/0x20 S/N 22 spec ver 48.1 
-20-11-2011 
+SMP
+-ATL22 device OT06044  LION fw/hw rev 0x1/0x20 S/N 544 spec ver 48.1 
+21-6-2013 
 ****** END ****** 
 Manufaccess address: 0x0 
 Device Type: 0x650 
 Controller IC identified by device type: bq20z65 fw/hw rev 261/166 
-Status: Permanent Failure 
-*** Failure reason: Cell imbalance failure 
-FETs state: Both FETs are off 
-Operation Status 0x990A 
-Status:  
-Battery inserted 
-Full access security mode enabled 
-FullAccess Key 0xFFFFF099 
-PF Clear Key Key 0xFFFFF099 
-UnSealed 
-UnSeal Key 0xFFFFF099 
-IT constant current 
-Voltages are OK for a QMAX update 
-Battery Status Flags: 48C3 
-TERMINATE_CHARGE_ALARM 
-TERMINATE_DISCHARGE_ALARM 
+Status: Normal Discharge 
+FETs state: Both FETs are on 
+Battery Status Flags: C3 
 INITIALIZED 
 DISCHARGING 
 Need 68 : 15 to full charge at rate 0 mWh 
-Batt Temp 23.8
-5 
-Pack Voltage 11.53 
-Cells 3.91 + 3.79 + 3.83 + 0.00 
+Batt Temp 25.85 
+Pack Voltage 11.31 
+Cells 3.81 + 3.75 + 3.75 + 0.00 
 Charge current  0 mA with average rate 0 
-Wants  0 mVolt and  0 mA for charging 
+Wants  12600 mVolt and  2800 mA for charging 
 Design Voltage: 11100 
-Charged to 76% of FullChargeCapacity or to 65% of DesignCapacity 
+Charged to 71% of FullChargeCapacity or to 69% of DesignCapacity 
 Remaining Capacity Alarm: 420 
 Remaining Time Alarm: 10 
-Remaining Battery Capacity: 2689 *10 mWh 
-Full Battery Capacity: 3543 *10 mWh 
-Cycle Count: 328 
+Remaining Battery Capacity: 2889 *10 mWh 
+Full Battery Capacity: 4088 *10 mWh 
+Cycle Count: 143 
 Design Capacity: 4200 *10 mWh 
+
+Ri1=0.467
+Ri2=0.346
+Ri3=0.565
+
+Ri1=0.490 
+Ri2=0.349 
+Ri3=0.552 
+
+Ri1=0.502
+Ri2=0.357
+Ri3=0.573
+
+Ri1=0.426
+Ri2=0.349
+Ri3=0.637
+
+2632*10 mW
+2663 => 31 *10mW in
+CI=285 
+
+ I found the default PF key to be 7326 and 1217 (little Endian)
+ 
+ Macbook batteries ship with a default unseal password (0x36720414)
+ There is standard permanent failure flags CLEAR Commands for many ‘bq-line’ Texas Instruments chips.
+
+Send over SMBus subcommand [0x2673], then [0x1712] to ManufacturerAccess command [0x00].
+26731712
+
+d:\smb>smbusb_comm -a 0x16 -c 0 -w 0054 // запрос регистра OperationStatus(0х54) 
+d:\smb>smbusb_comm -a 0x16 -c 0 -r 2 // читаем содержимое OperationStatus(0х54) 
+e044 // залочен, SealedMode
+
+d:\smb>smbusb_comm -a 0x16 -c 0 -w 0414 // ввод 1-й части заводского пароля на UnSealMode 
+d:\smb>smbusb_comm -a 0x16 -c 0 -w 3672 // ввод 2-й части заводского пароля на UnSealMode 
+
+d:\smb>smbusb_comm -a 0x16 -c 0 -w 0054 // запрос регистра OperationStatus(0х54) 
+d:\smb>smbusb_comm -a 0x16 -c 0 -r 2
+c044 // разлочился, UnSealMode 
+
+d:\smb>smbusb_comm -a 0x16 -c 0 -w ffff //1-я часть пароля на полный доступ, FullAccessMode
+d:\smb>smbusb_comm -a 0x16 -c 0 -w ffff //2-я часть на полный доступ, FullAccessMode
+
+d:\smb>smbusb_comm -a 0x16 -c 0 -w 0054 // запрос регистра OperationStatus(0х54) 
+d:\smb>smbusb_comm -a 0x16 -c 0 -r 2
+8044 // FullAccessMode
+
+d:\smb>smbusb_comm -a 0x16 -c 60 -r 4 // Запрос ключа на UnSealMode 
+14047236 // UnSealMode пароль в переставленном виде. 1404<>0414 , 7236 <>3672
+
+ 

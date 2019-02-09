@@ -166,7 +166,7 @@ uint16_t read16uManuf(uint16_t reg) {
 
 }
 
-uint16_t write16uManuf(uint16_t reg) {
+void write16uManuf(uint16_t reg) {
 
   Wire.beginTransmission(SBS_Address);
   Wire.write(SBS_ManAccess);

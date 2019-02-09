@@ -99,7 +99,7 @@
 /* 0x54 OperationStatus read-word function returns the current operation status of the bq20z90/bq20z95 NOT FOUND for Z65 */
 #define PRES	(1 << 15) // 1 = PRES is low, indicating that the system is present (battery inserted).
 #define FAS		(1 << 14) // 0 = Full access security mode
-#define SealS		(1 << 13) // 1 = Sealed security mode
+#define SealS	(1 << 13) // 1 = Sealed security mode
 #define CSV		(1 << 12) // 1 = Data Flash checksum value has been generated
 #define LDMD	(1 << 10) // Load mode for Impedance Track modeling. 0 = constant current, 1 = constant power
 #define WAKE	(1 << 7)  // 1 = bq20z90/bq20z95 WAKE mode
@@ -125,22 +125,22 @@
 #define Device_Type           0x0001
 #define Firmware_Version      0x0002
 #define Hardware_Version      0x0003
-#define DF_Checksum 		  0x0004
+#define DF_Checksum 		      0x0004
 #define Manufacturer_Status   0x0006
-#define Chemistry_ID 		  0x0008
+#define Chemistry_ID 		      0x0008
 /* System Control write only */ 
-#define Shutdown 				0x0010
-#define Sleep 					0x0011
-#define Seal_Device 			0x0020
-#define IT_Enable 				0x0021 // forces the bq20z60-R1/bq20z65-R1 to begin the Impedance Track algorithm
-#define SAFE_Activation 		0x0030 // drives the SAFE pin high
-#define SAFE_Clear 				0x0031 // sets the SAFE pin back to low
-#define LEDs_ON 				0x0032
-#define LEDs_OFF 				0x0033
-#define Display_ON 				0x0034
-#define Calibration_Mode 		0x0040 // Places the bq20z60-R1/bq20z65-R1 into calibration mode  (SLUA379A) 
-#define Reset 					0x0041 // The bq20z60-R1/bq20z65-R1 undergoes a full reset
-#define BootROM 				0x0F00 // The bq20z60-R1/bq20z65-R1 goes into BootROM mode
+#define Shutdown 				      0x0010
+#define Sleep 					      0x0011
+#define Seal_Device 			    0x0020
+#define IT_Enable 				    0x0021 // forces the bq20z60-R1/bq20z65-R1 to begin the Impedance Track algorithm
+#define SAFE_Activation 		  0x0030 // drives the SAFE pin high
+#define SAFE_Clear 				    0x0031 // sets the SAFE pin back to low
+#define LEDs_ON 				      0x0032
+#define LEDs_OFF 				      0x0033
+#define Display_ON 				    0x0034
+#define Calibration_Mode 		  0x0040 // Places the bq20z60-R1/bq20z65-R1 into calibration mode  (SLUA379A) 
+#define Reset 					      0x0041 // The bq20z60-R1/bq20z65-R1 undergoes a full reset
+#define BootROM 				      0x0F00 // The bq20z60-R1/bq20z65-R1 goes into BootROM mode
 
 /* Manufacturer_Status   0x0006 Battery bitmap */
 #define STATE0              (1 << 8)
@@ -252,14 +252,16 @@ class BQ20Z65
     uint32_t FullAccessKey (void);
     uint32_t PFClearKey (void);
     uint32_t PFClearKey_v2 (void);
-    
+
+    uint16_t read16u(uint8_t);
+
   protected:
 
   private:
 
     void write(uint8_t, uint8_t);
     uint8_t read(uint8_t);
-    uint16_t read16u(uint8_t);
+    //uint16_t read16u(uint8_t);
     int16_t read16(uint8_t);
     uint32_t read32u(uint8_t);
     uint16_t read16u2(uint8_t);

@@ -25,7 +25,7 @@ uint8_t Check_Reg(uint8_t address, uint8_t reg);
 uint8_t readAndReportData(uint8_t addr, uint8_t reg, uint8_t len, uint8_t* data, uint8_t stopTX);
 // battery special functions
 uint16_t read16uManuf (uint16_t reg);
-uint16_t write16uManuf (uint16_t reg);
+void write16uManuf (uint16_t reg);
 
 
 #endif
