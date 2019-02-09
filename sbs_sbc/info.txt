@@ -1,0 +1,41 @@
+Call Smart Battery data dump
+****** Battery Manuf ****** 
+SMP-ATL22 device OT06044  LION fw/hw rev 0x1/0x20 S/N 22 spec ver 48.1 
+20-11-2011 
+****** END ****** 
+Manufaccess address: 0x0 
+Device Type: 0x650 
+Controller IC identified by device type: bq20z65 fw/hw rev 261/166 
+Status: Permanent Failure 
+*** Failure reason: Cell imbalance failure 
+FETs state: Both FETs are off 
+Operation Status 0x990A 
+Status:  
+Battery inserted 
+Full access security mode enabled 
+FullAccess Key 0xFFFFF099 
+PF Clear Key Key 0xFFFFF099 
+UnSealed 
+UnSeal Key 0xFFFFF099 
+IT constant current 
+Voltages are OK for a QMAX update 
+Battery Status Flags: 48C3 
+TERMINATE_CHARGE_ALARM 
+TERMINATE_DISCHARGE_ALARM 
+INITIALIZED 
+DISCHARGING 
+Need 68 : 15 to full charge at rate 0 mWh 
+Batt Temp 23.8
+5 
+Pack Voltage 11.53 
+Cells 3.91 + 3.79 + 3.83 + 0.00 
+Charge current  0 mA with average rate 0 
+Wants  0 mVolt and  0 mA for charging 
+Design Voltage: 11100 
+Charged to 76% of FullChargeCapacity or to 65% of DesignCapacity 
+Remaining Capacity Alarm: 420 
+Remaining Time Alarm: 10 
+Remaining Battery Capacity: 2689 *10 mWh 
+Full Battery Capacity: 3543 *10 mWh 
+Cycle Count: 328 
+Design Capacity: 4200 *10 mWh 

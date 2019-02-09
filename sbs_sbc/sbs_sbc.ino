@@ -9,13 +9,13 @@
       Disch disable, turn on load, get V A to massiv
 */
 #include "BQ24725_lib.h"
-#include "BQ20Z45.h"
+#include "BQ20Z65.h"
 #include "i2c_helper.h"
 
 #include <TimerOne.h>
 
 #define MESSAGES
-#define DEBUG_OFF
+#define DEBUG
 
 #define LOAD_ON_PIN 9
 #define RED_K_PIN   3
@@ -25,8 +25,8 @@
 #define Vmax        12600 // mV maximum LION cell volt
 #define INPUT_CURRENT 4000 // mA maximum current from DC ( 19*2 = 38 Wt) 
 
-// Store an instance of the BQ20Z45 Sensor
-BQ20Z45 bms;
+// Store an instance of the BQ20Z65 Sensor
+BQ20Z65 bms;
 
 uint16_t data;
 String serial_in;
@@ -71,7 +71,8 @@ struct battstate {
   int16_t rV2C3;
   int16_t rI1;
   int16_t rI2;
-
+  uint16_t PFClearH;
+  uint16_t PFClearL;
 } batt_state;
 
 void set_def_batt (void) {
@@ -124,7 +125,7 @@ void parse_cmd (String cmd) {
     int current = sub.toInt();
     charge (batt_state.want_volt, current);
     batt_state.req_current = current;
-      chg_state = CHARGING;
+    chg_state = CHARGING;
   }
 
   // start discharge process
@@ -134,16 +135,16 @@ void parse_cmd (String cmd) {
     int current = sub.toInt();
     batt_state.req_current = current;
     discharge(current);
-      chg_state = DISCHARGING;
+    chg_state = DISCHARGING;
   }
 
-  // get cells Rint 
+  // get cells Rint
   if (serial_in.startsWith("getr")) {
-        chg_state = RINT;
-        substate=0;
-        prevMillis = millis();
+    chg_state = RINT;
+    substate = 0;
+    prevMillis = millis();
   }
-  
+
   // set duty to check disch curent process
   if (serial_in.startsWith("duty")) {
     sub = serial_in.substring(4);
@@ -226,6 +227,18 @@ void parse_cmd (String cmd) {
 #ifdef DEBUG
     Serial.print(cmd, HEX);   Serial.print(F(" addr "));     Serial.print(addr, HEX);   Serial.print(F(" reg "));    Serial.print(reg, HEX);  Serial.print(F(" cnt "));    Serial.println(cnt);
 #endif
+    if (cmd == 1) {
+      if (cnt == 2) {
+        buf[0] = sub[7];
+        buf[1 ] = sub[8];
+        sbswrite16 (addr, reg, buf);
+        Serial.print ("return 0x");
+        for (int i = 0; i < 2; i++ ) {
+          if (buf[i] <= 0xF) Serial.print("0");
+          Serial.print(buf[i], HEX);
+        }
+      }
+      }
     readAndReportData (addr | cmd, reg, cnt, i2cRxData, 0);
     Serial.print ("get 0x");
     for (int i = 0; i < cnt + 2; i++ ) {
@@ -294,7 +307,7 @@ void setup() {
   else   Serial.println("No charger");
 
 
-  if (check_i2c_addr (BQ20Z45_Address)) {
+  if (check_i2c_addr (BQ20Z65_Address)) {
 
     Serial.print("BMS Temp: ");
     Serial.print ( bms.GetTemp() / 10.0 - 273.15);
@@ -421,43 +434,43 @@ void loop() {
         printed = 0;
       }
       break;
-      
+
     case RINT:
-       charge (0, 0);
-       if (substate==0) {
+      charge (0, 0);
+      if (substate == 0) {
         leds_off();
         discharge(300);
         if (millis() - prevMillis > 5000) {
           prevMillis = millis();
           substate = 1;
-          batt_state.rV1C1 =bms.CellVoltage1();
-          batt_state.rV1C2 =bms.CellVoltage2();
-          batt_state.rV1C3 =bms.CellVoltage3();
+          batt_state.rV1C1 = bms.CellVoltage1();
+          batt_state.rV1C2 = bms.CellVoltage2();
+          batt_state.rV1C3 = bms.CellVoltage3();
           batt_state.rI1 = bms.GetCurrent();
         }
       }
-      else if (substate==1) {
+      else if (substate == 1) {
         discharge (1000);
         if (millis() - prevMillis > 10000)
         {
-          batt_state.rV2C1 =bms.CellVoltage1();
-          batt_state.rV2C2 =bms.CellVoltage2();
-          batt_state.rV2C3 =bms.CellVoltage3();
+          batt_state.rV2C1 = bms.CellVoltage1();
+          batt_state.rV2C2 = bms.CellVoltage2();
+          batt_state.rV2C3 = bms.CellVoltage3();
           batt_state.rI2 = bms.GetCurrent();
-           Serial.print (F("diff V "));
-           Serial.print (batt_state.rV1C1-batt_state.rV2C1);
-                      Serial.print (F("  I  "));
-           Serial.println (batt_state.rI2 - batt_state.rI1);
+          Serial.print (F("diff V "));
+          Serial.print (batt_state.rV1C1 - batt_state.rV2C1);
+          Serial.print (F("  I  "));
+          Serial.println (batt_state.rI2 - batt_state.rI1);
 
           prevMillis = millis();
           Serial.print (F("Ri  "));
-          rint = (float)(batt_state.rV1C1-batt_state.rV2C1)/(batt_state.rI2 - batt_state.rI1);
+          rint = (float)(batt_state.rV1C1 - batt_state.rV2C1) / (batt_state.rI2 - batt_state.rI1);
           Serial.print (rint, 3);
           Serial.print (F(" + "));
-          rint = (float)(batt_state.rV1C2-batt_state.rV2C2)/(batt_state.rI1 - batt_state.rI2);
+          rint = (float)(batt_state.rV1C2 - batt_state.rV2C2) / (batt_state.rI1 - batt_state.rI2);
           Serial.print (rint, 3);
           Serial.print (F(" + "));
-          rint = (float)(batt_state.rV1C3-batt_state.rV2C3)/(batt_state.rI1 - batt_state.rI2);
+          rint = (float)(batt_state.rV1C3 - batt_state.rV2C3) / (batt_state.rI1 - batt_state.rI2);
           Serial.println (rint, 3);
           chg_state = IDLE;
           discharge(0);
@@ -465,8 +478,8 @@ void loop() {
         }
       }
       break;
-      
-          default:
+
+    default:
       if (!printed) {
         Serial.print (F("default state error"));
         printed = 1;
@@ -827,6 +840,7 @@ void p_manufDATA (void) {
 
 void p_manufAccess (void) {
   uint16_t data;
+  uint32_t data32;
   data = read16uManuf (0x00);
   Serial.print(F("Manufaccess address: 0x"));
   Serial.println(data, HEX);
@@ -853,7 +867,9 @@ void p_manufAccess (void) {
     Serial.print(F("bq8030DBT"));
   }
   Serial.print (F(" fw/hw rev "));
-  Serial.print (data = read16uManuf (Firmware_Version)); Serial.print (F("/")); Serial.println (data = read16uManuf (Hardware_Version));
+  Serial.print (data = read16uManuf (Firmware_Version)); 
+  Serial.print (F("/")); 
+  Serial.println (data = read16uManuf (Hardware_Version));
   data = read16uManuf (Manufacturer_Status);
   Serial.print (F("Status: "));
   switch (data >> 8 & 0xF) {
@@ -893,5 +909,45 @@ void p_manufAccess (void) {
     default:
       break;
   }
+  Serial.print (F("Operation Status 0x"));
+  data = bms.OperationStatus();
+  Serial.println (data, HEX);
+  Serial.println (F("Status: "));
+  if  (data & PRES) Serial.println (F("Battery inserted"));
+  Serial.print (F("Full access "));
+  if  (data & FAS) Serial.println (F("disabled"));
+  else
+  {
+    Serial.println (F("enabled"));
+    data32 = bms.FullAccessKey();
+    Serial.print (F("FullAccess Key 0x"));
+    Serial.println (data32, HEX);
+    data32 = bms.PFClearKey();
+    Serial.print (F("PF Clear Key Key 0x"));
+    Serial.println (data32, HEX);
+    batt_state.PFClearH = data32 >> 16 & 0xFF;
+    batt_state.PFClearL = data32 & 0xFF;
+    delay(10);
+    data32 = bms.PFClearKey_v2();
+    Serial.print (F("Key  v2 0x"));
+    Serial.println (data32, HEX);
+  }
+  if  (data & SealS) Serial.println (F("Sealed"));
+  else {
+    Serial.println (F("UnSealed"));
+    data32 = bms.GetUnsealKey();
+    Serial.print (F("UnSeal Key 0x"));
+    Serial.println (data32, HEX);
+    }
+
+  if  (data & LDMD) Serial.println (F("IT constant power"));
+  else Serial.println (F("IT constant current"));
+  if  (data & XDSG) Serial.println (F("Discharge fault"));
+  if  (data & XDSGI) Serial.println (F("Discharge disabled due to a current issue"));
+  if  (data & R_DIS) Serial.println (F("Ra Table resistance updates are disabled"));
+  if  (data & VOK) Serial.println (F("Voltages are OK for a QMAX update"));
+  if  (data & QEN) Serial.println (F("QMAX updates are enabled"));
+
+
 }
 
